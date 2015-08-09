@@ -40,12 +40,3 @@ assert(bool32 cond)
     exit(1);
   }
 }
-
-
-void *
-allocate(void * game_memory, void ** mem_pos, size_t size, size_t total)
-{
-  *mem_pos += size;
-  assert(*mem_pos < game_memory + total);
-  return *mem_pos;
-}

@@ -6,7 +6,7 @@
 
 #include "util/common.h"
 
-#define MEM (1024 * 1024 * 1) // 1MB
+#define MEM (1024 * 1024) // 1MB
 
 #define WINDOW_WIDTH  360
 #define WINDOW_HEIGHT 480
@@ -31,8 +31,9 @@ int main(int32_t argc, char * argv)
     SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, WINDOW_WIDTH, WINDOW_HEIGHT);
 
   // The pixel buffer
-  uint32_t * pixels  = (uint32_t *)allocate(game_memory, &game_memory_pos, WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uint32_t), MEM);
-  assert(pixels != NULL);
+  uint32_t * pixels = (uint32_t *)game_memory_pos;
+  game_memory_pos += WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uint32_t);
+  assert(game_memory_pos < game_memory + MEM);
 
   printf("Starting\n");
 
@@ -77,7 +78,15 @@ int main(int32_t argc, char * argv)
              x < WINDOW_WIDTH;
              x++)
         {
-          pixels[(y*WINDOW_WIDTH) + x] = 0x00FFFFFF;
+          if ((x < WINDOW_WIDTH * .5 && y <= WINDOW_HEIGHT * .5) ||
+              (x >= WINDOW_WIDTH * .5 && y > WINDOW_HEIGHT * .5))
+          {
+            pixels[(y*WINDOW_WIDTH) + x] = 0x000088FF;
+          }
+          else
+          {
+            pixels[(y*WINDOW_WIDTH) + x] = 0x00FF0088;
+          }
         }
       }
 
