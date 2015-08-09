@@ -20,4 +20,4 @@ include .depend
 
 clean:
 	find . -name '*.o' -type f -delete
-	rm hex-game
+	rm $(EXECUTABLE)
