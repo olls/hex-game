@@ -104,9 +104,17 @@ int main(int32_t argc, char * argv)
     if (event.type == SDL_QUIT)
     {
       quit = true;
-      error("Quitting");
+    }
+    else if (event.type == SDL_KEYDOWN)
+    {
+      if (event.key.keysym.sym == 'w' && event.key.keysym.mod == KMOD_LCTRL)
+      {
+        quit = true;
+      }
     }
   }
+
+  error("Quitting");
 
   SDL_DestroyTexture(texture);
   SDL_DestroyRenderer(renderer);
