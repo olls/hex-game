@@ -2,33 +2,62 @@
 #include <SDL2/SDL.h>
 
 #include "util/common.h"
+#include "util/vectors.h"
 
 #define MEM (1024 * 1024) // 1MB
 
-#define WINDOW_WIDTH  360
-#define WINDOW_HEIGHT 480
 #define FPS 30
 
-void
-hex(v2 hex_pos, uint32_t radius, uint32_t * pixels)
+
+typedef struct Game_t
 {
-  v2 component;
-  component.x = radius;
-  component.y = radius * sqrt(3) * .5f;
+  vf2 hex_components;
+  uint32_t hex_radius;
+  v2 hex_dimensions;
+  v2 hex_grid_dimensions;
+  v2 window_dimensions;
+} Game;
 
-  for (int32_t offset_y = -component.y;
-       offset_y < component.y;
-       offset_y++)
+
+void
+hex(v2 hex_pos, uint32_t * pixels, Game game_setup)
+{
+  vf2 component = mulFloatScalar(game_setup.hex_components, game_setup.hex_radius);
+  v2 startOffset = mulScalar(floorVec(component), -1);
+  v2 endOffset = floorVec(component);
+
+  if (hex_pos.x + startOffset.x < 0)
   {
-    for (int32_t offset_x = -component.x;
-         offset_x < component.x;
-         offset_x++)
-    {
-      v2 pos = {hex_pos.x + offset_x, hex_pos.y + offset_y};
+    startOffset.x = -hex_pos.x;
+  }
+  else if (hex_pos.x + startOffset.x > game_setup.window_dimensions.x)
+  {
+    startOffset.x = game_setup.window_dimensions.x - hex_pos.x;
+  }
 
-      if (absInt32(offset_x) < radius * (component.y - absInt32(offset_y) * .5f) / component.y)
+  if (hex_pos.y + startOffset.y < 0)
+  {
+    startOffset.y = -hex_pos.y;
+  }
+  else if (hex_pos.y + startOffset.y > game_setup.window_dimensions.y)
+  {
+    startOffset.y = game_setup.window_dimensions.y - hex_pos.y;
+  }
+
+  v2 offset;
+  for (offset.y = startOffset.y;
+       offset.y < endOffset.y;
+       offset.y++)
+  {
+    for (offset.x = startOffset.x;
+         offset.x < endOffset.x;
+         offset.x++)
+    {
+      v2 pos = addVec(hex_pos, offset);
+
+      if (absInt32(offset.x) < game_setup.hex_radius * (component.y - absInt32(offset.y) * .5f) / component.y)
       {
-        pixels[pos.y * WINDOW_WIDTH + pos.x] = 0;
+        pixels[v2ToV1(pos, game_setup.window_dimensions.x)] = 0;
       }
     }
   }
@@ -43,18 +72,31 @@ int main(int32_t argc, char * argv)
   void * game_memory_pos = game_memory;
   assert(game_memory != NULL);
 
+
+  Game game_setup;
+  game_setup.hex_components = (vf2){1, sqrt(3) * .5f};
+  game_setup.hex_radius = 20;
+  game_setup.hex_grid_dimensions = (v2){24, 18};
+
+  game_setup.hex_dimensions = floorVec(mulFloatScalar(game_setup.hex_components, game_setup.hex_radius));
+
+  game_setup.window_dimensions = floorVec(mulV2ByVf2(
+    game_setup.hex_grid_dimensions,
+    mulFloatScalar(game_setup.hex_components, game_setup.hex_radius)));
+
+
   SDL_Init(SDL_INIT_VIDEO);
 
   SDL_Window * window = SDL_CreateWindow("A Hex Game",
-    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, game_setup.window_dimensions.x, game_setup.window_dimensions.y, 0);
 
   SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, 0);
   SDL_Texture * texture = SDL_CreateTexture(renderer,
-    SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, WINDOW_WIDTH, WINDOW_HEIGHT);
+    SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, game_setup.window_dimensions.x, game_setup.window_dimensions.y);
 
   // The pixel buffer
   uint32_t * pixels = (uint32_t *)game_memory_pos;
-  game_memory_pos += WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uint32_t);
+  game_memory_pos += game_setup.window_dimensions.x * game_setup.window_dimensions.y * sizeof(uint32_t);
   assert(game_memory_pos < game_memory + MEM);
 
   printf("Starting\n");
@@ -94,39 +136,54 @@ int main(int32_t argc, char * argv)
 
       v2 pixelPointer;
       for (pixelPointer.y = 0;
-           pixelPointer.y < WINDOW_HEIGHT;
+           pixelPointer.y < game_setup.window_dimensions.y;
            pixelPointer.y++)
       {
         for (pixelPointer.x = 0;
-             pixelPointer.x < WINDOW_WIDTH;
+             pixelPointer.x < game_setup.window_dimensions.x;
              pixelPointer.x++)
         {
-          pixels[pixelPointer.y * WINDOW_WIDTH + pixelPointer.x] = 0x00FFFFFF;
+          pixels[v2ToV1(pixelPointer, game_setup.window_dimensions.x)] = 0x00FFFFFF;
         }
       }
 
-      // Draw
+      // Draw Hexagons
 
-      v2 hex_pos = {WINDOW_WIDTH/2, WINDOW_HEIGHT/2};
-      uint32_t radius = minInt32(WINDOW_WIDTH, WINDOW_HEIGHT)/3;
-      hex(hex_pos, radius, pixels);
+      v2 hex_grid_pos;
+      for (hex_grid_pos.x = 0;
+           hex_grid_pos.x < game_setup.hex_grid_dimensions.x;
+           hex_grid_pos.x += 2)
+      {
+        for (hex_grid_pos.y = 0;
+             hex_grid_pos.y < game_setup.hex_grid_dimensions.y;
+             hex_grid_pos.y += 2)
+        {
+          v2 hex_pixel_pos = mulV2ByV2(game_setup.hex_dimensions, hex_grid_pos);
+          hex(hex_pixel_pos, pixels, game_setup);
+        }
+      }
+
+      //
+      // Render
+      //
 
       // Flip pixels
-      for (uint32_t y = 0;
-           y < WINDOW_HEIGHT / 2;
-           y++)
+      v2 pos;
+      for (pos.y = 0;
+           pos.y < game_setup.window_dimensions.y / 2;
+           pos.y++)
       {
-        for (uint32_t x = 0;
-             x < WINDOW_WIDTH;
-             x++)
+        for (pos.x = 0;
+             pos.x < game_setup.window_dimensions.x;
+             pos.x++)
         {
-          uint32_t top_pixel = pixels[y * WINDOW_WIDTH + x];
-          pixels[y * WINDOW_WIDTH + x] = pixels[(WINDOW_HEIGHT - y - 1) * WINDOW_WIDTH + x];
-          pixels[(WINDOW_HEIGHT - y - 1) * WINDOW_WIDTH + x] = top_pixel;
+          uint32_t top_pixel = pixels[pos.y * game_setup.window_dimensions.x + pos.x];
+          pixels[v2ToV1(pos, game_setup.window_dimensions.x)] = pixels[(game_setup.window_dimensions.y - pos.y - 1) * game_setup.window_dimensions.x + pos.x];
+          pixels[(game_setup.window_dimensions.y - pos.y - 1) * game_setup.window_dimensions.x + pos.x] = top_pixel;
         }
       }
 
-      SDL_UpdateTexture(texture, NULL, pixels, WINDOW_WIDTH * sizeof(uint32_t));
+      SDL_UpdateTexture(texture, NULL, pixels, game_setup.window_dimensions.x * sizeof(uint32_t));
 
       SDL_RenderClear(renderer);
       SDL_RenderCopy(renderer, texture, NULL, NULL);

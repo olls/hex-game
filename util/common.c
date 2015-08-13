@@ -2,8 +2,6 @@
 #include <sys/time.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <stdint.h>
-#include <string.h>
 
 #include "common.h"
 
@@ -42,27 +40,6 @@ assert(bool32 cond)
 }
 
 
-v2
-addScalar(v2 vec, int32_t scalar)
-{
-  v2 result = vec;
-
-  result.x += scalar;
-  result.y += scalar;
-
-  return result;
-}
-
-
-v2
-addVec(v2 va, v2 vb)
-{
-  v2 result = {va.x + vb.x, va.y + vb.y};
-
-  return result;
-}
-
-
 int32_t
 minInt32(int32_t a, int32_t b)
 {
@@ -73,5 +50,5 @@ minInt32(int32_t a, int32_t b)
 uint32_t
 absInt32(int32_t x)
 {
-  return (uint32_t)(x < 0 ? 0 - x : x);
+  return (uint32_t)(x < 0 ? -x : x);
 }

@@ -1,7 +1,7 @@
 CC         = gcc
 CFLAGS     = -Werror -std=c11 -g
 LIBS       = -lSDL2
-OBJS       = main.o util/common.o
+OBJS       = main.o util/common.o util/vectors.o
 EXECUTABLE = hex-game
 
 SRCS       = $(OBJS:.o=.c)
