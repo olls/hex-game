@@ -1,7 +1,4 @@
 #include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <SDL2/SDL.h>
 
 #include "util/common.h"
@@ -11,6 +8,31 @@
 #define WINDOW_WIDTH  360
 #define WINDOW_HEIGHT 480
 #define FPS 30
+
+void
+hex(v2 hex_pos, uint32_t radius, uint32_t * pixels)
+{
+  v2 component;
+  component.x = radius;
+  component.y = radius * sqrt(3) * .5f;
+
+  for (int32_t offset_y = -component.y;
+       offset_y < component.y;
+       offset_y++)
+  {
+    for (int32_t offset_x = -component.x;
+         offset_x < component.x;
+         offset_x++)
+    {
+      v2 pos = {hex_pos.x + offset_x, hex_pos.y + offset_y};
+
+      if (absInt32(offset_x) < radius * (component.y - absInt32(offset_y) * .5f) / component.y)
+      {
+        pixels[pos.y * WINDOW_WIDTH + pos.x] = 0;
+      }
+    }
+  }
+}
 
 
 int main(int32_t argc, char * argv)
@@ -70,23 +92,37 @@ int main(int32_t argc, char * argv)
 
       // Clear screen to white
 
+      v2 pixelPointer;
+      for (pixelPointer.y = 0;
+           pixelPointer.y < WINDOW_HEIGHT;
+           pixelPointer.y++)
+      {
+        for (pixelPointer.x = 0;
+             pixelPointer.x < WINDOW_WIDTH;
+             pixelPointer.x++)
+        {
+          pixels[pixelPointer.y * WINDOW_WIDTH + pixelPointer.x] = 0x00FFFFFF;
+        }
+      }
+
+      // Draw
+
+      v2 hex_pos = {WINDOW_WIDTH/2, WINDOW_HEIGHT/2};
+      uint32_t radius = minInt32(WINDOW_WIDTH, WINDOW_HEIGHT)/3;
+      hex(hex_pos, radius, pixels);
+
+      // Flip pixels
       for (uint32_t y = 0;
-           y < WINDOW_HEIGHT;
+           y < WINDOW_HEIGHT / 2;
            y++)
       {
         for (uint32_t x = 0;
              x < WINDOW_WIDTH;
              x++)
         {
-          if ((x < WINDOW_WIDTH * .5 && y <= WINDOW_HEIGHT * .5) ||
-              (x >= WINDOW_WIDTH * .5 && y > WINDOW_HEIGHT * .5))
-          {
-            pixels[(y*WINDOW_WIDTH) + x] = 0x000088FF;
-          }
-          else
-          {
-            pixels[(y*WINDOW_WIDTH) + x] = 0x00FF0088;
-          }
+          uint32_t top_pixel = pixels[y * WINDOW_WIDTH + x];
+          pixels[y * WINDOW_WIDTH + x] = pixels[(WINDOW_HEIGHT - y - 1) * WINDOW_WIDTH + x];
+          pixels[(WINDOW_HEIGHT - y - 1) * WINDOW_WIDTH + x] = top_pixel;
         }
       }
 
