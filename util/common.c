@@ -52,3 +52,11 @@ absInt32(int32_t x)
 {
   return (uint32_t)(x < 0 ? -x : x);
 }
+
+
+int32_t
+floorToInt32(float x)
+{
+  int32_t result = (int32_t)x;
+  return result;
+}

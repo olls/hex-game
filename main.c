@@ -4,44 +4,41 @@
 #include "util/common.h"
 #include "util/vectors.h"
 
-#define MEM (1024 * 1024) // 1MB
+#define MEM (1024 * 1024 * 3)
 
 #define FPS 30
 
 
-typedef struct Game_t
+typedef struct HexShape_t
 {
-  uint32_t hex_radius_in_pixels;
-  vf2 hex_components;
-  v2 hex_dimensions_in_pixels;
-  v2 hex_grid_dimensions;
-  v2 window_dimensions_in_pixels;
-} Game;
+  uint32_t radius_in_pixels;
+  vf2 dimensions_in_pixels;
+} HexShape;
 
 
 void
-hex(v2 hex_pos, uint32_t * pixels, Game game_setup)
+render_hex(v2 hex_pos, uint32_t * pixels, HexShape hexes, v2 window_dimensions_in_pixels, uint32_t color)
 {
-  vf2 component = mulFloatScalar(game_setup.hex_components, game_setup.hex_radius_in_pixels);
-  v2 startOffset = mulScalar(floorVec(component), -1);
-  v2 endOffset = floorVec(component);
+  // TODO: Sub-pixel rendering, instead of flooring
+  v2 startOffset = floorVf2(mulVf2ByScalar(hexes.dimensions_in_pixels, -1));
+  v2 endOffset = floorVf2(hexes.dimensions_in_pixels);
 
   if (hex_pos.x + startOffset.x < 0)
   {
     startOffset.x = -hex_pos.x;
   }
-  else if (hex_pos.x + startOffset.x > game_setup.window_dimensions_in_pixels.x)
+  else if (hex_pos.x + startOffset.x > window_dimensions_in_pixels.x)
   {
-    startOffset.x = game_setup.window_dimensions_in_pixels.x - hex_pos.x;
+    startOffset.x = window_dimensions_in_pixels.x - hex_pos.x;
   }
 
   if (hex_pos.y + startOffset.y < 0)
   {
     startOffset.y = -hex_pos.y;
   }
-  else if (hex_pos.y + startOffset.y > game_setup.window_dimensions_in_pixels.y)
+  else if (hex_pos.y + startOffset.y > window_dimensions_in_pixels.y)
   {
-    startOffset.y = game_setup.window_dimensions_in_pixels.y - hex_pos.y;
+    startOffset.y = window_dimensions_in_pixels.y - hex_pos.y;
   }
 
   v2 offset;
@@ -53,11 +50,11 @@ hex(v2 hex_pos, uint32_t * pixels, Game game_setup)
          offset.x < endOffset.x;
          offset.x++)
     {
-      v2 pos = addVec(hex_pos, offset);
+      v2 pos = addV2(hex_pos, offset);
 
-      if (absInt32(offset.x) < game_setup.hex_radius_in_pixels * (component.y - absInt32(offset.y) * .5f) / component.y)
+      if (absInt32(offset.x) < hexes.radius_in_pixels * (hexes.dimensions_in_pixels.y - absInt32(offset.y) * .5f) / hexes.dimensions_in_pixels.y)
       {
-        pixels[v2ToV1(pos, game_setup.window_dimensions_in_pixels.x)] = 0;
+        pixels[v2ToV1(pos, window_dimensions_in_pixels.x)] = color;
       }
     }
   }
@@ -73,28 +70,27 @@ int main(int32_t argc, char * argv)
   assert(game_memory != NULL);
 
 
-  Game game_setup;
-  game_setup.hex_radius_in_pixels = 20;
-  game_setup.hex_components = (vf2){1, sqrt(3) * .5f};
+  HexShape hexes;
+  hexes.radius_in_pixels = 20;
 
-  game_setup.hex_dimensions_in_pixels = floorVec(mulFloatScalar(game_setup.hex_components, game_setup.hex_radius_in_pixels));
-  game_setup.hex_grid_dimensions = (v2){24, 18};
+  // NOTE: This is 'radius' dimensions
+  hexes.dimensions_in_pixels = mulVf2ByScalar((vf2){1, sqrt(3) * .5f}, hexes.radius_in_pixels);
 
-  game_setup.window_dimensions_in_pixels = mulV2ByV2(game_setup.hex_grid_dimensions, game_setup.hex_dimensions_in_pixels);
-
+  v2 window_dimensions_in_pixels = floorVf2(mulV2ByVf2((v2){24, 18}, hexes.dimensions_in_pixels));
+  vHex camera_position_in_hexes = {0,0};
 
   SDL_Init(SDL_INIT_VIDEO);
 
   SDL_Window * window = SDL_CreateWindow("A Hex Game",
-    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, game_setup.window_dimensions_in_pixels.x, game_setup.window_dimensions_in_pixels.y, 0);
+    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_dimensions_in_pixels.x, window_dimensions_in_pixels.y, 0);
 
   SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, 0);
   SDL_Texture * texture = SDL_CreateTexture(renderer,
-    SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, game_setup.window_dimensions_in_pixels.x, game_setup.window_dimensions_in_pixels.y);
+    SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, window_dimensions_in_pixels.x, window_dimensions_in_pixels.y);
 
   // The pixel buffer
   uint32_t * pixels = (uint32_t *)game_memory_pos;
-  game_memory_pos += game_setup.window_dimensions_in_pixels.x * game_setup.window_dimensions_in_pixels.y * sizeof(uint32_t);
+  game_memory_pos += window_dimensions_in_pixels.x * window_dimensions_in_pixels.y * sizeof(uint32_t);
   assert(game_memory_pos < game_memory + MEM);
 
   printf("Starting\n");
@@ -134,58 +130,66 @@ int main(int32_t argc, char * argv)
 
       v2 pixelPointer;
       for (pixelPointer.y = 0;
-           pixelPointer.y < game_setup.window_dimensions_in_pixels.y;
+           pixelPointer.y < window_dimensions_in_pixels.y;
            pixelPointer.y++)
       {
         for (pixelPointer.x = 0;
-             pixelPointer.x < game_setup.window_dimensions_in_pixels.x;
+             pixelPointer.x < window_dimensions_in_pixels.x;
              pixelPointer.x++)
         {
-          pixels[v2ToV1(pixelPointer, game_setup.window_dimensions_in_pixels.x)] = 0x00FFFFFF;
+          pixels[v2ToV1(pixelPointer, window_dimensions_in_pixels.x)] = 0x00FFFFFF;
         }
       }
 
       // Draw Hexagons
-      int32_t radius = 5;
-      vHex center = mulScalar(game_setup.window_dimensions_in_pixels, .5);
+      int32_t radius = 2;
       vHex hex_pos;
-      for (hex_pos.q = -radius;
+      for (hex_pos.q = 1-radius;
            hex_pos.q < radius;
            hex_pos.q += 1)
       {
-        for (hex_pos.r = -radius;
+        for (hex_pos.r = 1-radius;
              hex_pos.r < radius;
              hex_pos.r += 1)
         {
-          if (hex_pos.q + hex_pos.r < radius)
+          if (absInt32(hex_pos.q + hex_pos.r) < radius)
           {
-            v2 hex_pixel_pos = floorVec(mulV2ByVf2(game_setup.hex_dimensions_in_pixels, vHexToVf2(hex_pos)));
-            hex(hex_pixel_pos, pixels, game_setup);
+            uint32_t color;
+            if (hex_pos.q == 0 && hex_pos.r == 0)
+            {
+              color = 0x00FF0000;
+            }
+            else
+            {
+              color = 0;
+            }
+
+            v2 hex_pixel_pos = floorVf2(mulVf2ByVf2(
+              hexes.dimensions_in_pixels,
+              hexToCart(addHexes(hex_pos, camera_position_in_hexes), hexes.radius_in_pixels)
+            ));
+            render_hex(hex_pixel_pos, pixels, hexes, window_dimensions_in_pixels, color);
           }
         }
       }
 
-      //
-      // Render
-      //
-
       // Flip pixels
       v2 pos;
       for (pos.y = 0;
-           pos.y < game_setup.window_dimensions_in_pixels.y / 2;
+           pos.y < window_dimensions_in_pixels.y / 2;
            pos.y++)
       {
         for (pos.x = 0;
-             pos.x < game_setup.window_dimensions_in_pixels.x;
+             pos.x < window_dimensions_in_pixels.x;
              pos.x++)
         {
-          uint32_t top_pixel = pixels[pos.y * game_setup.window_dimensions_in_pixels.x + pos.x];
-          pixels[v2ToV1(pos, game_setup.window_dimensions_in_pixels.x)] = pixels[(game_setup.window_dimensions_in_pixels.y - pos.y - 1) * game_setup.window_dimensions_in_pixels.x + pos.x];
-          pixels[(game_setup.window_dimensions_in_pixels.y - pos.y - 1) * game_setup.window_dimensions_in_pixels.x + pos.x] = top_pixel;
+          uint32_t top_pixel = pixels[pos.y * window_dimensions_in_pixels.x + pos.x];
+          pixels[v2ToV1(pos, window_dimensions_in_pixels.x)] = pixels[(window_dimensions_in_pixels.y - pos.y - 1) * window_dimensions_in_pixels.x + pos.x];
+          pixels[(window_dimensions_in_pixels.y - pos.y - 1) * window_dimensions_in_pixels.x + pos.x] = top_pixel;
         }
       }
 
-      SDL_UpdateTexture(texture, NULL, pixels, game_setup.window_dimensions_in_pixels.x * sizeof(uint32_t));
+      SDL_UpdateTexture(texture, NULL, pixels, window_dimensions_in_pixels.x * sizeof(uint32_t));
 
       SDL_RenderClear(renderer);
       SDL_RenderCopy(renderer, texture, NULL, NULL);

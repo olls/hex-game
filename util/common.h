@@ -22,3 +22,6 @@ minInt32(int32_t a, int32_t b);
 
 uint32_t
 absInt32(int32_t x);
+
+int32_t
+floorToInt32(float x);
