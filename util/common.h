@@ -25,3 +25,6 @@ absInt32(int32_t x);
 
 int32_t
 floorToInt32(float x);
+
+int32_t
+squareInt32(int32_t x);

@@ -20,39 +20,38 @@ void
 render_hex(v2 hex_pos, uint32_t * pixels, HexShape hexes, v2 window_dimensions_in_pixels, uint32_t color)
 {
   // TODO: Sub-pixel rendering, instead of flooring
-  v2 startOffset = floorVf2(mulVf2ByScalar(hexes.dimensions_in_pixels, -1));
-  v2 endOffset = floorVf2(hexes.dimensions_in_pixels);
+  v2 startPos = subV2(hex_pos, floorVf2(hexes.dimensions_in_pixels));
+  v2 endPos = addV2(hex_pos, floorVf2(hexes.dimensions_in_pixels));
 
-  if (hex_pos.x + startOffset.x < 0)
+  if (startPos.x < 0)
   {
-    startOffset.x = -hex_pos.x;
+    startPos.x = 0;
   }
-  else if (hex_pos.x + startOffset.x > window_dimensions_in_pixels.x)
+  else if (startPos.x > window_dimensions_in_pixels.x)
   {
-    startOffset.x = window_dimensions_in_pixels.x - hex_pos.x;
-  }
-
-  if (hex_pos.y + startOffset.y < 0)
-  {
-    startOffset.y = -hex_pos.y;
-  }
-  else if (hex_pos.y + startOffset.y > window_dimensions_in_pixels.y)
-  {
-    startOffset.y = window_dimensions_in_pixels.y - hex_pos.y;
+    startPos.x = window_dimensions_in_pixels.x;
   }
 
-  v2 offset;
-  for (offset.y = startOffset.y;
-       offset.y < endOffset.y;
-       offset.y++)
+  if (startPos.y < 0)
   {
-    for (offset.x = startOffset.x;
-         offset.x < endOffset.x;
-         offset.x++)
+    startPos.y = 0;
+  }
+  else if (startPos.y > window_dimensions_in_pixels.y)
+  {
+    startPos.y = window_dimensions_in_pixels.y;
+  }
+
+  v2 pos;
+  for (pos.y = startPos.y;
+       pos.y < endPos.y;
+       pos.y++)
+  {
+    for (pos.x = startPos.x;
+         pos.x < endPos.x;
+         pos.x++)
     {
-      v2 pos = addV2(hex_pos, offset);
-
-      if (absInt32(offset.x) < hexes.radius_in_pixels * (hexes.dimensions_in_pixels.y - absInt32(offset.y) * .5f) / hexes.dimensions_in_pixels.y)
+      v2 rel_to_hex_pos = subV2(pos, hex_pos);
+      if (absInt32(rel_to_hex_pos.x) < hexes.radius_in_pixels * (hexes.dimensions_in_pixels.y - absInt32(rel_to_hex_pos.y) * .5f) / hexes.dimensions_in_pixels.y)
       {
         pixels[v2ToV1(pos, window_dimensions_in_pixels.x)] = color;
       }
@@ -61,7 +60,8 @@ render_hex(v2 hex_pos, uint32_t * pixels, HexShape hexes, v2 window_dimensions_i
 }
 
 
-int main(int32_t argc, char * argv)
+int
+main(int32_t argc, char * argv)
 {
   srand(time(NULL));
 
@@ -77,7 +77,7 @@ int main(int32_t argc, char * argv)
   hexes.dimensions_in_pixels = mulVf2ByScalar((vf2){1, sqrt(3) * .5f}, hexes.radius_in_pixels);
 
   v2 window_dimensions_in_pixels = floorVf2(mulV2ByVf2((v2){24, 18}, hexes.dimensions_in_pixels));
-  vHex camera_position_in_hexes = {0,0};
+  vHex camera_position_in_hexes = {2,3};
 
   SDL_Init(SDL_INIT_VIDEO);
 
